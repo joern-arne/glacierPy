@@ -1,3 +1,4 @@
+import os
 import json
 import functools
 import threading
@@ -10,7 +11,8 @@ from pathlib import Path
 from tabulate import tabulate
 
 @functools.lru_cache
-def get_glacier_client(_ = threading.current_thread(), region='eu-central-1'):
+def get_glacier_client(_ = threading.current_thread()):
+    region = os.environ.get('AWS_REGION')
     session = botocore.session.get_session()
     return session.create_client('glacier', region_name=region)
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import glacierPyInquirer_lib as lib
 from InquirerPy import inquirer
@@ -12,6 +13,8 @@ class GlacierClientInquirer:
         self.__vault = vault
 
     def run(self):
+        self.__check_environment()
+
         while True:
             if not self.__vault:
                 lib.print_vaults()
@@ -20,6 +23,16 @@ class GlacierClientInquirer:
             lib.print_vault_state(self.__vault)
             self.__select_action()
             self.__vault = None
+
+    def __check_environment(self):
+        if os.environ.get('AWS_PROFILE') is None:
+            print('Please configure your awscli and "export AWS_PROFILE=<PROFILE>" in order to use glacierPy.')
+            sys.exit()
+
+        if os.environ.get('AWS_REGION') is None:
+            print('Please "export AWS_REGION=<REGION>" in order to use glacierPy.')
+            print('  e.g.: export AWS_REGION=eu-central-1')
+            sys.exit()
 
 
     def __select_vault(self):
