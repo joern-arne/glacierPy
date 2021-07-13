@@ -30,12 +30,12 @@ make
 make run
 
 # run script directly (supports parameters as described at "Usage")
-venv/bin/python3 glacierPyInquirer.py
+venv/bin/python3 glacierPy.py
 ```
 
 # Usage
 ```
-usage: glacierPyInquirer.py [-h] [--vault VAULT] [--report]
+usage: glacierPy.py [-h] [--vault VAULT] [--report]
 
 optional arguments:
   -h, --help     show this help message and exit

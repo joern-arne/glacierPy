@@ -2,7 +2,7 @@
 
 import os
 import sys
-import glacierPyInquirer_lib as lib
+import glacierPy_lib as lib
 from InquirerPy import inquirer
 import argparse
 

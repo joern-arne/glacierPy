@@ -6,13 +6,13 @@ all: venv
 $(VENV)/bin/activate: requirements.txt
 	python3 -m venv $(VENV)
 	./$(VENV)/bin/pip install -r requirements.txt
-	chmod +x glacierPyInquirer.py
+	chmod +x glacierPy.py
 
 # venv is a shortcut target
 venv: $(VENV)/bin/activate
 
 run: venv
-	./$(VENV)/bin/python3 glacierPyInquirer.py
+	./$(VENV)/bin/python3 glacierPy.py
 
 clean:
 	rm -rf $(VENV)
