@@ -21,8 +21,12 @@ class GlacierClientInquirer:
                 self.__select_vault()
 
             lib.print_vault_state(self.__vault)
-            self.__select_action()
+            action = self.__select_action()
             self.__vault = None
+
+            if action == 'exit' or not inquirer.confirm(message="Would you like to continue with another vault?", default=True).execute():
+                sys.exit()
+
 
     def __check_environment(self):
         if os.environ.get('AWS_PROFILE') is None:
@@ -75,14 +79,14 @@ class GlacierClientInquirer:
             default=None,
         ).execute()
 
-        if choice == 'exit': sys.exit()
-        elif choice == 'back': return
-        elif choice == 'retrieve_inventory':
+        if choice == 'retrieve_inventory':
             lib.retrieve_inventory(self.__vault)
         elif choice == 'delete_vault':
             lib.delete_vault(self.__vault)
         elif choice[0] == 'delete_inventory':
             lib.delete_inventory(self.__vault, choice[1])
+        
+        return choice
 
 
 if __name__ == '__main__':
