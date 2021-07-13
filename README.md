@@ -34,7 +34,7 @@ venv/bin/python3 glacierPyInquirer.py
 ```
 
 # Usage
-```bash
+```
 usage: glacierPyInquirer.py [-h] [--vault VAULT] [--report]
 
 optional arguments:
