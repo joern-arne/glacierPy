@@ -8,7 +8,7 @@ The process is supported interactively by the tool.
 1. Request to `Retrieve inventory` of vault.
 2. Wait 3-5 hours until the inventory has been created.
 3. `Delete inventory` (all archives) from the vault.
-4. Wait another 3-5 hourse until the inventory has been updated at AWS.
+4. Wait another 3-5 hours until the inventory has been updated at AWS.
 5. Request to `Delete vault`to remove the vault completely.
 
 
