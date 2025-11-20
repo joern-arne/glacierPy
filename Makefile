@@ -26,4 +26,4 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name '*.pyc' -delete
 
-.PHONY: all venv run clean
+.PHONY: all venv run test lint clean
