@@ -30,15 +30,29 @@ make
 make run
 
 # run script directly (supports parameters as described at "Usage")
-venv/bin/python3 glacierPy.py
+venv/bin/python3 -m glacierPy
 ```
 
 # Usage
 ```
-usage: glacierPy.py [-h] [--vault VAULT] [--report]
+usage: python3 -m glacierPy [-h] [--vault VAULT] [--report]
 
 optional arguments:
   -h, --help     show this help message and exit
   --vault VAULT  Choose vault
   --report       Only print report info
+```
+
+# Development
+
+## Testing
+To run the unit tests:
+```bash
+make test
+```
+
+## Cleaning
+To clean the virtual environment and build artifacts:
+```bash
+make clean
 ```
