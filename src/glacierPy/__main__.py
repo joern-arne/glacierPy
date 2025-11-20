@@ -73,12 +73,16 @@ class GlacierClientInquirer:
             message="Select a AWS Glacier Vault:",
             choices=[
                 *[vault['VaultName'] for vault in lib.get_vaults()],
+                *[{'name': 'MONITOR JOBS', 'value': '__monitor_jobs'}],
                 *[{'name': 'EXIT', 'value': '__exit'}]
             ],
             default=None,
         ).execute()
 
         if choice == '__exit':
+            sys.exit()
+        elif choice == '__monitor_jobs':
+            lib.monitor_jobs()
             sys.exit()
         else:
             self.__vault = choice

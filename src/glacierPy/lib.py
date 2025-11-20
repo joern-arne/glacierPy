@@ -13,6 +13,9 @@ import concurrent.futures
 from tqdm import tqdm
 from tabulate import tabulate
 import logging
+import time
+from datetime import datetime
+import humanize
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +35,9 @@ __all__ = [
     'delete_vault',
     'print_vaults',
     'print_vault_state',
+    'monitor_jobs',
+    'print_jobs',
+    'wait_for_job',
     'JOB_ACTION_INVENTORY_RETRIEVAL',
     'JOB_STATUS_SUCCEEDED',
 ]
@@ -79,6 +85,85 @@ def get_jobs(vault_name: str) -> dict[str, Any]:
     except botocore.exceptions.ClientError as e:
         logger.error(f"Failed to list jobs for vault {vault_name}: {e}")
         raise
+
+
+def monitor_jobs(wait_time: int = 60) -> None:
+    """
+    Monitors the status of inventory retrieval jobs across all vaults.
+
+    Args:
+        wait_time (int): The time in seconds to wait between checks.
+    """
+    changed = False
+    start_time = datetime.now()
+
+    jobs_last: list[dict[str, Any]] | None = None
+    
+    # Initial check
+    for vault in get_vaults():
+        vault_jobs = get_jobs(vault['VaultName'])
+        if vault_jobs.get('JobList'):
+            incomplete_jobs = [
+                {**item, "Vault": vault['VaultName']} 
+                for item in vault_jobs['JobList'] 
+                if item['Action'] == JOB_ACTION_INVENTORY_RETRIEVAL and not item['Completed']
+            ]
+            if incomplete_jobs:
+                if jobs_last is None:
+                    jobs_last = []
+                jobs_last.extend(incomplete_jobs)
+
+    if jobs_last:
+        print_jobs(jobs_last)
+
+    while not changed:
+        if jobs_last is None:
+            break
+            
+        jobs_now = []
+        for vault in get_vaults():
+            vault_jobs = get_jobs(vault['VaultName'])
+            if vault_jobs.get('JobList'):
+                incomplete_jobs = [
+                    {**item, "Vault": vault['VaultName']} 
+                    for item in vault_jobs['JobList'] 
+                    if item['Action'] == JOB_ACTION_INVENTORY_RETRIEVAL and not item['Completed']
+                ]
+                jobs_now.extend(incomplete_jobs)
+
+        changed = (jobs_now != jobs_last)
+        jobs_last = jobs_now
+        
+        elapsed = humanize.naturaldelta(datetime.now() - start_time)
+        print(f'{datetime.now()} Monitoring Inventories every {wait_time} seconds since {elapsed} (start: {start_time})...', end='\r')
+        
+        if not changed:
+            time.sleep(wait_time)
+
+    print()  # New line after monitoring
+    if jobs_last:
+        print_jobs(jobs_last)
+        logger.info("Job status changed!")
+
+
+def print_jobs(jobs: list[dict[str, Any]]) -> None:
+    """
+    Prints a table of jobs.
+
+    Args:
+        jobs (list[dict[str, Any]]): List of job dictionaries.
+    """
+    print(textwrap.dedent(f'''
+        Jobs:
+        ============
+        {tabulate([
+            {
+                k: str(v)[:25] for k, v in item.items() 
+                if k in ('Vault', 'JobId', 'Action', 'CreationDate', 'Completed', 'StatusCode', 'CompletionDate', 'InventorySizeInBytes')
+            }
+            for item in jobs
+        ], headers="keys")}
+    '''))
 
 
 def retrieve_inventory(vault_name: str) -> None:
@@ -160,6 +245,43 @@ def delete_archive(vault: str, archive_id: str) -> Any:
         raise
 
 
+def wait_for_job(job_id: str | None, vault_name: str) -> None:
+    """
+    Waits for a specific job to complete.
+
+    Args:
+        job_id (str | None): The ID of the job to wait for.
+        vault_name (str): The name of the vault.
+    """
+    if job_id is None:
+        return
+        
+    client = get_glacier_client()
+    logger.info(f"Job {job_id[:25]} still in progress. Waiting for it to complete...")
+    
+    attempts = 0
+    start_time = time.time()
+    job_status = 'InProgress'
+    
+    while job_status == 'InProgress':
+        try:
+            job_desc = client.describe_job(vaultName=vault_name, jobId=job_id)
+            job_status = job_desc['StatusCode']
+            if job_status != 'InProgress':
+                break
+            attempts += 1
+            elapsed = humanize.naturaldelta(time.time() - start_time)
+            print(f"Waiting since {elapsed} / Attempt {attempts} / Status: {job_status}", end='\r')
+            time.sleep(60)
+        except botocore.exceptions.ClientError as e:
+            logger.error(f"Error describing job {job_id}: {e}")
+            break
+    
+    print()  # New line after waiting
+    if job_status == JOB_STATUS_SUCCEEDED:
+        delete_inventory(vault_name, job_id)
+
+
 def delete_vault(vault_name: str) -> None:
     """
     Deletes a vault.
@@ -167,6 +289,19 @@ def delete_vault(vault_name: str) -> None:
     Args:
         vault_name (str): The name of the vault to delete.
     """
+    # Check for incomplete jobs and wait
+    try:
+        jobs = get_jobs(vault_name)
+        job_id = None
+        if jobs and jobs.get('JobList'):
+            for job in jobs['JobList']:
+                if job['Action'] == JOB_ACTION_INVENTORY_RETRIEVAL and not job['Completed']:
+                    job_id = job["JobId"]
+                    break
+        
+        wait_for_job(job_id, vault_name)
+    except Exception as e:
+        logger.warning(f"Could not check/wait for jobs: {e}")
     client = get_glacier_client()
     try:
         client.delete_vault(
@@ -189,10 +324,14 @@ def print_vaults() -> None:
     """
     Prints a table of available vaults.
     """
+    vaults = [
+        {**item, "SizeInBytes": humanize.naturalsize(item["SizeInBytes"])} 
+        for item in get_vaults()
+    ]
     print(textwrap.dedent(f'''
         Available Vauls:
         ================
-        {tabulate(get_vaults(), headers="keys")}
+        {tabulate(vaults, headers="keys")}
     '''))
 
 
